@@ -82,12 +82,19 @@ public class FileServer {
 	private static void handleClient(final ClientRequest clientRequest) {
 		try {
 			// Your logic for handling the client's input/output goes here
-			System.out.println("Inside handle Client, request message => "+clientRequest.getRequestMessage());
+			final String request = clientRequest.getRequestMessage();
+			System.out.println("Inside handle Client, request message => " + request);
+			// Hang indefinitely without sending any message
+			//Thread.sleep(Long.MAX_VALUE);
 			// For demonstration purposes, we'll just sleep for 10 seconds before closing
 			// the connection
-			//Thread.sleep(10000);
-			// Hang indefinitely without sending any message
-            Thread.sleep(Long.MAX_VALUE);
+			 Thread.sleep(10000);
+			// Sending normal response after receiving a request from the client
+			final OutputStream outputStream = clientRequest.getClientSocket().getOutputStream();
+			final String normalResponse = "Request has been processed. Closing connection. Original request: "
+					+ request;
+			outputStream.write(normalResponse.getBytes());
+			outputStream.flush();
 			clientRequest.getClientSocket().close();
 			System.out.println("Client disconnected: " + clientRequest.getClientSocket());
 		} catch (final Exception e) {
