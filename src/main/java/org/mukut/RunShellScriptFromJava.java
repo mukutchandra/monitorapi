@@ -21,7 +21,7 @@ public class RunShellScriptFromJava {
 			final Process process = processBuilder.start();
 
 			// Start a separate thread to read and print the output of the script
-			new Thread(() -> {
+			final Thread outputThread = new Thread(() -> {
 				try {
 					final InputStream inputStream = process.getInputStream();
 					final BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream));
@@ -32,36 +32,35 @@ public class RunShellScriptFromJava {
 				} catch (final IOException e) {
 					e.printStackTrace();
 				}
-			}).start();
+			});
+			outputThread.start();
 
 			// Set a timeout of 2 minutes (120,000 milliseconds)
 			final int timeout = 120000;
-			final long startTime = System.currentTimeMillis();
-			long elapsedTime;
 
-			// Wait for the script to finish or for the timeout to occur
-			int exitCode = 0;
-			while (true) {
+			// Start a separate thread to monitor the timeout
+			final Thread timeoutThread = new Thread(() -> {
 				try {
-					exitCode = process.exitValue();
-					break; // The process has exited
-				} catch (final IllegalThreadStateException e) {
-					// Process is still running
-					elapsedTime = System.currentTimeMillis() - startTime;
-					if (elapsedTime > timeout) {
+					Thread.sleep(timeout);
+					if (process.isAlive()) {
 						process.destroy();
 						System.err.println("Script execution timed out. Terminating process.");
-						break;
 					}
+				} catch (final InterruptedException e) {
+					e.printStackTrace();
 				}
-			}
+			});
+			timeoutThread.start();
+
+			// Wait for the script to finish
+			final int exitCode = process.waitFor();
 
 			if (exitCode == 0) {
 				System.out.println("Script executed successfully.");
 			} else {
 				System.err.println("Error executing the script. Exit code: " + exitCode);
 			}
-		} catch (final IOException e) {
+		} catch (IOException | InterruptedException e) {
 			e.printStackTrace();
 		}
 	}
