@@ -12,6 +12,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class FileServer {
 
@@ -58,10 +59,14 @@ public class FileServer {
 
 	private static void startMonitorThread(final ClientRequest clientRequest, final Future<?> future,
 			final int timeoutMinutes) {
+		// Create a flag to track whether the operation has completed
+		final AtomicBoolean operationCompleted = new AtomicBoolean(false);
 		final Thread monitorThread = new Thread(() -> {
 			try {
 				// Wait for the specified time, plus a grace period of 1 second
 				future.get(timeoutMinutes + 1, TimeUnit.MINUTES);
+				// Set the flag to true indicating the operation has completed
+				operationCompleted.set(true);
 			} catch (TimeoutException | InterruptedException | ExecutionException e) {
 				// Task took too long or got interrupted or threw an exception.
 				// In any case, we need to cancel the task to kill it.
@@ -77,6 +82,20 @@ public class FileServer {
 		});
 
 		monitorThread.start();
+
+		// Wait for the monitor thread to complete if the operation hasn't completed
+		if (!operationCompleted.get()) {
+			try {
+				monitorThread.join();
+			} catch (final InterruptedException e) {
+				e.printStackTrace();
+				// The main thread waiting for the monitor thread was interrupted
+				// You can handle this interruption as needed
+				System.out.println("Main thread was interrupted while waiting for the monitor thread.");
+				// Restore the interrupted status
+				Thread.currentThread().interrupt();
+			}
+		}
 	}
 
 	private static void handleClient(final ClientRequest clientRequest) {
@@ -85,10 +104,10 @@ public class FileServer {
 			final String request = clientRequest.getRequestMessage();
 			System.out.println("Inside handle Client, request message => " + request);
 			// Hang indefinitely without sending any message
-			//Thread.sleep(Long.MAX_VALUE);
+			// Thread.sleep(Long.MAX_VALUE);
 			// For demonstration purposes, we'll just sleep for 10 seconds before closing
 			// the connection
-			 Thread.sleep(10000);
+			Thread.sleep(10000);
 			// Sending normal response after receiving a request from the client
 			final OutputStream outputStream = clientRequest.getClientSocket().getOutputStream();
 			final String normalResponse = "Request has been processed. Closing connection. Original request: "
